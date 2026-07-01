@@ -18,48 +18,30 @@ def speedlimit():
 
     headers = {
         "apikey": SUPABASE_KEY,
-        "Authorization": f"Bearer {SUPABASE_KEY}"
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": "application/json"
     }
 
-    url = f"{SUPABASE_URL}/rest/v1/Speed%20limit?select=X,Y,Speed_Limit"
-
-    response = requests.get(url, headers=headers)
-
-    print("STATUS:", response.status_code)
-    print("RESPONSE:", response.text)
+    response = requests.post(
+        f"{SUPABASE_URL}/rest/v1/rpc/nearest_speed_limit",
+        headers=headers,
+        json={
+            "lat_input": lat,
+            "lon_input": lon
+        }
+    )
 
     data = response.json()
 
-    print("DATA:", data)
+    if not data:
+        return jsonify({"error": "No speed limit found"}), 404
 
-    if not isinstance(data, list) or len(data) == 0:
-        return jsonify({
-            "error": "No data returned from Supabase",
-            "response": data
-        }), 500
-
-    nearest = None
-    min_distance = float("inf")
-
-    for row in data:
-        distance = (
-            (float(row["X"]) - lon) ** 2 +
-            (float(row["Y"]) - lat) ** 2
-        )
-
-        if distance < min_distance:
-            min_distance = distance
-            nearest = row
-
-    if nearest is None:
-        return jsonify({
-            "error": "No nearest point found"
-        }), 500
+    result = data[0]
 
     return jsonify({
-        "speed_limit": nearest["Speed_Limit"],
-        "nearest_x": nearest["X"],
-        "nearest_y": nearest["Y"]
+        "speed_limit": result["speed_limit"],
+        "nearest_x": result["x"],
+        "nearest_y": result["y"]
     })
 
 if __name__ == "__main__":
