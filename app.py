@@ -2,8 +2,8 @@ from flask import Flask
 import pandas as pd
 
 # Load datasets
-chennai = pd.read_csv("Chennai_Speed_Limit.csv", nrows=1000)
-thiruvallur = pd.read_csv("Thiruvallur_speed_limit.csv", nrows=1000)
+chennai = pd.read_csv("Chennai_Speed_Limit.csv")
+thiruvallur = pd.read_csv("Thiruvallur_speed_limit.csv")
 
 app = Flask(__name__)
 
