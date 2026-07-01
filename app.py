@@ -4,7 +4,7 @@ import requests
 app = Flask(__name__)
 
 SUPABASE_URL = "https://qwrlfojltqfkgyjjhwky.supabase.co"
-SUPABASE_KEY = "sb_publishable_wY6i_JE-2Msitn-vkCkJWA_SPoSpSUm"
+SUPABASE_KEY = "PASTE_YOUR_PUBLISHABLE_KEY_HERE"
 
 @app.route("/")
 def home():
@@ -25,10 +25,21 @@ def speedlimit():
 
     response = requests.get(url, headers=headers)
 
+    print("STATUS:", response.status_code)
+    print("RESPONSE:", response.text)
+
     data = response.json()
 
+    print("DATA:", data)
+
+    if not isinstance(data, list) or len(data) == 0:
+        return jsonify({
+            "error": "No data returned from Supabase",
+            "response": data
+        }), 500
+
     nearest = None
-    min_distance = 999999999
+    min_distance = float("inf")
 
     for row in data:
         distance = (
@@ -40,8 +51,15 @@ def speedlimit():
             min_distance = distance
             nearest = row
 
+    if nearest is None:
+        return jsonify({
+            "error": "No nearest point found"
+        }), 500
+
     return jsonify({
-        "speed_limit": nearest["Speed_Limit"]
+        "speed_limit": nearest["Speed_Limit"],
+        "nearest_x": nearest["X"],
+        "nearest_y": nearest["Y"]
     })
 
 if __name__ == "__main__":
