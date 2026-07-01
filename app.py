@@ -4,7 +4,7 @@ import requests
 app = Flask(__name__)
 
 SUPABASE_URL = "https://qwrlfojltqfkgyjjhwky.supabase.co"
-SUPABASE_KEY = "PASTE_YOUR_PUBLISHABLE_KEY_HERE"
+SUPABASE_KEY = "sb_publishable_wY6i_JE-2Msitn-vkCkJWA_SPoSpSUm"
 
 @app.route("/")
 def home():
