@@ -50,12 +50,21 @@ def speedlimit():
 @app.route("/violation", methods=["POST"])
 def violation():
 
-    data = request.get_json()
+    data = request.get_json() or {}
 
-    lat = data.get("lat")
-    lon = data.get("lon")
-    speed = data.get("speed")
-    speed_limit = data.get("speed_limit")
+    required = ["lat", "lon", "speed", "speed_limit"]
+
+    for field in required:
+        if field not in data:
+            return jsonify({
+                "status": "error",
+                "message": f"Missing field: {field}"
+            }), 400
+
+    lat = data["lat"]
+    lon = data["lon"]
+    speed = data["speed"]
+    speed_limit = data["speed_limit"]
 
     headers = {
         "apikey": SUPABASE_KEY,
@@ -79,40 +88,17 @@ def violation():
         json=payload
     )
 
+    if response.status_code not in [200, 201]:
+        return jsonify({
+            "status": "error",
+            "supabase_status": response.status_code,
+            "details": response.text
+        }), 500
+
     return jsonify({
-        "supabase_status": response.status_code,
-        "supabase_response": response.text
-    })
-
-
-@app.route("/testviolation")
-def testviolation():
-
-    headers = {
-        "apikey": SUPABASE_KEY,
-        "Authorization": f"Bearer {SUPABASE_KEY}",
-        "Content-Type": "application/json",
-        "Prefer": "return=representation"
-    }
-
-    payload = {
-        "latitude": 13.0955,
-        "longitude": 80.1075,
-        "speed": 75,
-        "speed_limit": 60,
+        "status": "success",
         "fine_amount": 200,
-        "violation_duration": 15
-    }
-
-    response = requests.post(
-        f"{SUPABASE_URL}/rest/v1/violations",
-        headers=headers,
-        json=payload
-    )
-
-    return jsonify({
-        "supabase_status": response.status_code,
-        "supabase_response": response.text
+        "message": "Violation stored"
     })
 
 
