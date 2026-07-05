@@ -6,9 +6,11 @@ app = Flask(__name__)
 SUPABASE_URL = "https://qwrlfojltqfkgyjjhwky.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF3cmxmb2psdHFma2d5ampod2t5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjkwNzEzNCwiZXhwIjoyMDk4NDgzMTM0fQ.J_CibEEtUZFialqKeDmJqu3hrLrDSAjSVNiJRn-Okwc"
 
+
 @app.route("/")
 def home():
     return "Speed Limit API Running"
+
 
 @app.route("/speedlimit")
 def speedlimit():
@@ -44,6 +46,7 @@ def speedlimit():
         "nearest_y": result["y"]
     })
 
+
 @app.route("/violation", methods=["POST"])
 def violation():
 
@@ -76,17 +79,42 @@ def violation():
         json=payload
     )
 
-    if response.status_code not in [200, 201]:
-        return jsonify({
-            "status": "error",
-            "details": response.text
-        }), 500
+    return jsonify({
+        "supabase_status": response.status_code,
+        "supabase_response": response.text
+    })
+
+
+@app.route("/testviolation")
+def testviolation():
+
+    headers = {
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": "application/json",
+        "Prefer": "return=representation"
+    }
+
+    payload = {
+        "latitude": 13.0955,
+        "longitude": 80.1075,
+        "speed": 75,
+        "speed_limit": 60,
+        "fine_amount": 200,
+        "violation_duration": 15
+    }
+
+    response = requests.post(
+        f"{SUPABASE_URL}/rest/v1/violations",
+        headers=headers,
+        json=payload
+    )
 
     return jsonify({
-        "status": "success",
-        "fine_amount": 200,
-        "message": "Violation stored"
+        "supabase_status": response.status_code,
+        "supabase_response": response.text
     })
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
