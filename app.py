@@ -44,5 +44,49 @@ def speedlimit():
         "nearest_y": result["y"]
     })
 
+@app.route("/violation", methods=["POST"])
+def violation():
+
+    data = request.get_json()
+
+    lat = data.get("lat")
+    lon = data.get("lon")
+    speed = data.get("speed")
+    speed_limit = data.get("speed_limit")
+
+    headers = {
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": "application/json",
+        "Prefer": "return=representation"
+    }
+
+    payload = {
+        "latitude": lat,
+        "longitude": lon,
+        "speed": speed,
+        "speed_limit": speed_limit,
+        "fine_amount": 200,
+        "violation_duration": 15
+    }
+
+    response = requests.post(
+        f"{SUPABASE_URL}/rest/v1/violations",
+        headers=headers,
+        json=payload
+    )
+
+    if response.status_code not in [200, 201]:
+        return jsonify({
+            "status": "error",
+            "details": response.text
+        }), 500
+
+    return jsonify({
+        "status": "success",
+        "fine_amount": 200,
+        "message": "Violation stored"
+    })
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
