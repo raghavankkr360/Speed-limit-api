@@ -179,7 +179,7 @@ def telemetry():
         limit = int(data["speed_limit"])
 
         vehicle_id = str(
-            data.get("vehicle_id", "ESP32-01")
+            data.get("vehicle_id", "Skoda Slavia")
         )
 
         if not (-90 <= lat <= 90 and -180 <= lon <= 180):
