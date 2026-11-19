@@ -2,491 +2,1450 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Vehicle Speed Monitoring System</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <link rel="stylesheet"
-          href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<title>Vehicle Speed Monitoring Dashboard</title>
 
-    <style>
-        * {
-            box-sizing: border-box;
-        }
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-        body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background: #f1f5f9;
-            color: #172033;
-        }
+<!-- Leaflet Map -->
+<link
+rel="stylesheet"
+href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+/>
 
-        header {
-            background: #14213d;
-            color: white;
-            padding: 22px 5%;
-        }
+<style>
+:root {
+    --bg: #090a0e;
+    --panel: #151820;
+    --panel2: #1b202b;
+    --red: #ff343d;
+    --red-dark: #a91620;
+    --white: #f5f5f7;
+    --muted: #9298a7;
+    --green: #35df91;
+    --border: #292e3a;
+}
 
-        header h1 {
-            margin: 0 0 7px;
-            font-size: 23px;
-        }
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
 
-        header p {
-            margin: 0;
-            color: #cbd5e1;
-            font-size: 14px;
-        }
+body {
+    background: var(--bg);
+    color: var(--white);
+    font-family: 'Inter', sans-serif;
+}
 
-        main {
-            max-width: 1250px;
-            margin: 25px auto;
-            padding: 0 18px;
-        }
+.container {
+    width: 95%;
+    max-width: 1500px;
+    margin: auto;
+    padding: 25px 0 45px;
+}
 
-        .status-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            flex-wrap: wrap;
-            margin-bottom: 18px;
-        }
+/* HEADER */
 
-        .status {
-            padding: 9px 14px;
-            border-radius: 20px;
-            background: #e2e8f0;
-            font-weight: bold;
-            font-size: 13px;
-        }
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+    margin-bottom: 30px;
+}
 
-        .online {
-            color: #166534;
-            background: #dcfce7;
-        }
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+}
 
-        .offline {
-            color: #991b1b;
-            background: #fee2e2;
-        }
+.brand-icon {
+    background: var(--red);
+    color: white;
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+    font-size: 25px;
+    font-weight: 900;
+    box-shadow: 0 0 22px #ff343d55;
+}
 
-        .cards {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 15px;
-            margin-bottom: 20px;
-        }
+.brand h1 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 29px;
+    font-weight: 900;
+    letter-spacing: 1px;
+}
 
-        .card, .panel {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-        }
+.brand p {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 3px;
+    letter-spacing: 1.5px;
+}
 
-        .card h3 {
-            margin: 0 0 12px;
-            color: #64748b;
-            font-size: 14px;
-            font-weight: 600;
-        }
+.connection {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 30px;
+    padding: 10px 16px;
+    font-size: 12px;
+}
 
-        .value {
-            font-size: 30px;
-            font-weight: bold;
-        }
+.connection-dot {
+    width: 9px;
+    height: 9px;
+    background: var(--green);
+    border-radius: 50%;
+    box-shadow: 0 0 10px var(--green);
+}
 
-        .unit {
-            font-size: 14px;
-            color: #64748b;
-        }
+.connection.offline .connection-dot {
+    background: var(--red);
+    box-shadow: 0 0 10px var(--red);
+}
 
-        .warning {
-            color: #dc2626;
-        }
+/* SECTION HEADINGS */
 
-        .safe {
-            color: #15803d;
-        }
+.section-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 23px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    margin: 28px 0 15px;
+    text-transform: uppercase;
+}
 
-        .content-grid {
-            display: grid;
-            grid-template-columns: 1.4fr 1fr;
-            gap: 18px;
-        }
+.section-title span {
+    color: var(--red);
+}
 
-        .panel h2 {
-            margin: 0 0 16px;
-            font-size: 18px;
-        }
+/* MAIN GRID */
 
-        #map {
-            width: 100%;
-            height: 390px;
-            border-radius: 9px;
-        }
+.main-grid {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr 1fr;
+    gap: 18px;
+}
 
-        .details p {
-            margin: 12px 0;
-            color: #475569;
-            font-size: 14px;
-        }
+.card {
+    background: linear-gradient(145deg, var(--panel2), var(--panel));
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    min-width: 0;
+    box-shadow: 0 8px 25px #00000030;
+}
 
-        .details strong {
-            color: #172033;
-        }
+.card-label {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+}
 
-        .alert {
-            display: none;
-            margin-top: 15px;
-            padding: 13px;
-            border-radius: 8px;
-            color: #991b1b;
-            background: #fee2e2;
-            font-weight: bold;
-        }
+.metric-value {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 38px;
+    font-weight: 800;
+    margin-top: 12px;
+}
 
-        .table-panel {
-            margin-top: 20px;
-            overflow-x: auto;
-        }
+.metric-value span {
+    font-size: 15px;
+    color: var(--muted);
+    font-family: 'Inter', sans-serif;
+}
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 13px;
-            min-width: 600px;
-        }
+.metric-subtitle {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 6px;
+}
 
-        th, td {
-            text-align: left;
-            padding: 12px 10px;
-            border-bottom: 1px solid #e2e8f0;
-        }
+.red-text {
+    color: var(--red);
+}
 
-        th {
-            color: #64748b;
-            background: #f8fafc;
-        }
+.green-text {
+    color: var(--green);
+}
 
-        .empty {
-            color: #64748b;
-            text-align: center;
-            padding: 20px;
-        }
+/* SPEEDOMETER */
 
-        footer {
-            text-align: center;
-            color: #64748b;
-            padding: 25px;
-            font-size: 12px;
-        }
+.speedometer-card {
+    grid-row: span 2;
+    background:
+        radial-gradient(circle at 50% 75%, #481116 0%, transparent 65%),
+        linear-gradient(145deg, #20232d, #090a0e);
+    border: 1px solid #69252b;
+    box-shadow: 0 0 25px #ff343d15;
+}
 
-        @media (max-width: 850px) {
-            .cards {
-                grid-template-columns: repeat(2, 1fr);
-            }
+.speedometer {
+    width: 100%;
+    max-width: 390px;
+    margin: 15px auto 0;
+}
 
-            .content-grid {
-                grid-template-columns: 1fr;
-            }
-        }
+.gauge-svg {
+    width: 100%;
+    display: block;
+    overflow: visible;
+}
 
-        @media (max-width: 480px) {
-            .cards {
-                grid-template-columns: 1fr 1fr;
-                gap: 9px;
-            }
+.gauge-background,
+.gauge-active {
+    fill: none;
+    stroke-width: 10;
+    stroke-linecap: round;
+}
 
-            .card {
-                padding: 14px;
-            }
+.gauge-background {
+    stroke: #3a3035;
+}
 
-            .value {
-                font-size: 24px;
-            }
-        }
-    </style>
+.gauge-active {
+    stroke: var(--red);
+    stroke-dasharray: 0 100;
+    filter: drop-shadow(0 0 7px var(--red));
+    transition: stroke-dasharray .35s ease;
+}
+
+.gauge-labels {
+    fill: #aeb4c0;
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    font-weight: 800;
+    text-anchor: middle;
+}
+
+.gauge-ticks {
+    stroke: #aeb4c0;
+    stroke-width: 2;
+    stroke-linecap: round;
+}
+
+.needle {
+    stroke: white;
+    stroke-width: 4;
+    stroke-linecap: round;
+    filter: drop-shadow(0 0 6px var(--red));
+}
+
+.needle-center {
+    fill: var(--red);
+    stroke: white;
+    stroke-width: 2;
+}
+
+#gaugeNeedle {
+    transform-origin: 150px 150px;
+    transform: rotate(-90deg);
+    transition: transform .45s cubic-bezier(.2,.8,.2,1);
+}
+
+.digital-speed {
+    fill: white;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 49px;
+    font-weight: 900;
+    text-anchor: middle;
+    transition: fill .3s ease;
+}
+
+.digital-speed.overspeed {
+    fill: var(--red);
+    filter: drop-shadow(0 0 8px #ff343d88);
+}
+
+.digital-unit {
+    fill: var(--red);
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    text-anchor: middle;
+}
+
+.gauge-footer {
+    display: flex;
+    justify-content: space-between;
+    max-width: 330px;
+    margin: -5px auto 0;
+    font-size: 10px;
+    color: var(--muted);
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+#gaugeStatus {
+    color: var(--green);
+}
+
+.gauge-limit {
+    text-align: center;
+    margin-top: 17px;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.gauge-limit strong {
+    color: white;
+    font-size: 16px;
+}
+
+/* ALERT */
+
+.alert-card {
+    border-color: #633037;
+    background: linear-gradient(145deg, #29171d, #151820);
+}
+
+.alert-box {
+    display: none;
+    color: var(--red);
+    font-weight: 800;
+    font-size: 13px;
+    margin-top: 12px;
+    animation: blink 1s infinite;
+}
+
+@keyframes blink {
+    50% { opacity: .45; }
+}
+
+/* VEHICLE INFO */
+
+.info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 15px;
+}
+
+.info-item {
+    background: #0c0f15;
+    border-radius: 10px;
+    padding: 12px;
+}
+
+.info-item small {
+    display: block;
+    color: var(--muted);
+    font-size: 10px;
+    margin-bottom: 7px;
+}
+
+.info-item strong {
+    font-size: 13px;
+    overflow-wrap: anywhere;
+}
+
+/* ANALYTICS */
+
+.analytics-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+}
+
+.analytics-card {
+    position: relative;
+    overflow: hidden;
+}
+
+.analytics-card::after {
+    content: "";
+    position: absolute;
+    right: -22px;
+    bottom: -35px;
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    background: #ff343d0b;
+}
+
+.analytics-value {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 34px;
+    font-weight: 800;
+    margin-top: 12px;
+}
+
+.analytics-unit {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'Inter', sans-serif;
+}
+
+/* MAP */
+
+.map-card {
+    margin-top: 18px;
+}
+
+#map {
+    width: 100%;
+    height: 380px;
+    border-radius: 12px;
+    margin-top: 15px;
+    z-index: 1;
+}
+
+/* CHARTS */
+
+.chart-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+}
+
+.chart-container {
+    height: 280px;
+    margin-top: 15px;
+    position: relative;
+}
+
+/* TABLE */
+
+.table-wrapper {
+    overflow-x: auto;
+    margin-top: 15px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 650px;
+}
+
+th {
+    text-align: left;
+    padding: 14px 12px;
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+}
+
+td {
+    padding: 14px 12px;
+    font-size: 12px;
+    border-bottom: 1px solid #292e3a80;
+}
+
+tbody tr:hover {
+    background: #ffffff06;
+}
+
+.status-badge {
+    display: inline-block;
+    background: #ff343d20;
+    color: #ff656b;
+    padding: 5px 9px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 800;
+}
+
+.safe-badge {
+    background: #35df9120;
+    color: var(--green);
+}
+
+.empty-row {
+    color: var(--muted);
+    text-align: center;
+    padding: 25px;
+}
+
+/* FOOTER */
+
+footer {
+    margin-top: 35px;
+    padding: 20px;
+    border-top: 1px solid var(--border);
+    text-align: center;
+    color: var(--muted);
+    font-size: 11px;
+}
+
+/* RESPONSIVE */
+
+@media(max-width: 950px) {
+    .main-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .speedometer-card {
+        grid-row: span 2;
+    }
+
+    .analytics-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media(max-width: 650px) {
+    .container {
+        width: 92%;
+    }
+
+    .main-grid,
+    .chart-grid,
+    .analytics-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .speedometer-card {
+        grid-row: auto;
+    }
+
+    .brand h1 {
+        font-size: 23px;
+    }
+
+    #map {
+        height: 300px;
+    }
+}
+</style>
 </head>
 
 <body>
 
+<div class="container">
+
+<!-- HEADER -->
+
 <header>
-    <h1>Smart GPS-Based Vehicle Monitoring System</h1>
-    <p>Real-time speed monitoring and automated traffic violation logging</p>
-</header>
 
-<main>
+    <div class="brand">
+        <div class="brand-icon">S</div>
 
-    <div class="status-row">
         <div>
-            <strong>Vehicle: Skoda Slavia</strong>
-            <div class="unit" id="lastUpdated">
-                Waiting for GPS telemetry...
-            </div>
-        </div>
-
-        <div class="status offline" id="connectionStatus">
-            ● OFFLINE
+            <h1>SMART SPEED MONITOR</h1>
+            <p>GPS VEHICLE MONITORING SYSTEM</p>
         </div>
     </div>
 
-    <section class="cards">
+    <div class="connection" id="connectionStatus">
+        <span class="connection-dot"></span>
+        <span id="connectionText">CONNECTING...</span>
+    </div>
 
-        <div class="card">
-            <h3>Vehicle Speed</h3>
-            <div class="value" id="vehicleSpeed">--</div>
-            <div class="unit">km/h</div>
+</header>
+
+
+<!-- LIVE MONITORING -->
+
+<div class="section-title">
+    LIVE <span>VEHICLE MONITORING</span>
+</div>
+
+<div class="main-grid">
+
+    <!-- ANALOGUE SPEEDOMETER -->
+
+    <div class="card speedometer-card">
+
+        <div class="card-label">LIVE VEHICLE SPEED</div>
+
+        <div class="speedometer">
+
+            <svg viewBox="0 0 300 190" class="gauge-svg">
+
+                <!-- Background gauge -->
+                <path
+                    d="M 30 150 A 120 120 0 0 1 270 150"
+                    class="gauge-background"
+                    pathLength="100"
+                />
+
+                <!-- Active gauge -->
+                <path
+                    id="gaugeArc"
+                    d="M 30 150 A 120 120 0 0 1 270 150"
+                    class="gauge-active"
+                    pathLength="100"
+                />
+
+                <!-- Speed labels -->
+                <g class="gauge-labels">
+                    <text x="28" y="169">0</text>
+                    <text x="47" y="91">40</text>
+                    <text x="101" y="42">80</text>
+                    <text x="199" y="42">120</text>
+                    <text x="253" y="91">160</text>
+                    <text x="272" y="169">180</text>
+                </g>
+
+                <!-- Needle -->
+                <g id="gaugeNeedle">
+                    <line
+                        x1="150"
+                        y1="150"
+                        x2="150"
+                        y2="48"
+                        class="needle"
+                    />
+
+                    <circle
+                        cx="150"
+                        cy="150"
+                        r="9"
+                        class="needle-center"
+                    />
+                </g>
+
+                <!-- Digital speed -->
+                <text
+                    x="150"
+                    y="125"
+                    id="digitalSpeed"
+                    class="digital-speed"
+                >0.0</text>
+
+                <text
+                    x="150"
+                    y="145"
+                    class="digital-unit"
+                >KM/H</text>
+
+            </svg>
+
         </div>
 
-        <div class="card">
-            <h3>Road Speed Limit</h3>
-            <div class="value" id="speedLimit">--</div>
-            <div class="unit">km/h</div>
+        <div class="gauge-footer">
+            <span>0 KM/H</span>
+            <span id="gaugeStatus">NORMAL</span>
+            <span>180 KM/H</span>
         </div>
 
-        <div class="card">
-            <h3>Total Violations</h3>
-            <div class="value" id="violationCount">0</div>
-            <div class="unit">Recorded violations</div>
+        <div class="gauge-limit">
+            ROAD SPEED LIMIT:
+            <strong id="gaugeLimit">-- KM/H</strong>
         </div>
 
-        <div class="card">
-            <h3>Fine Amount</h3>
-            <div class="value" id="fineAmount">₹0</div>
-            <div class="unit">Demonstration fine per violation: ₹200</div>
+    </div>
+
+
+    <!-- SPEED LIMIT -->
+
+    <div class="card">
+        <div class="card-label">ROAD SPEED LIMIT</div>
+
+        <div class="metric-value" id="speedLimit">
+            -- <span>km/h</span>
         </div>
 
-    </section>
+        <div class="metric-subtitle">
+            Maximum permitted road speed
+        </div>
+    </div>
 
-    <section class="content-grid">
 
-        <div class="panel">
-            <h2>Live GPS Location</h2>
-            <div id="map"></div>
+    <!-- VIOLATIONS -->
+
+    <div class="card alert-card">
+        <div class="card-label">TOTAL VIOLATIONS</div>
+
+        <div class="metric-value red-text" id="violationCount">
+            0
         </div>
 
-        <div class="panel">
-            <h2>Vehicle Information</h2>
+        <div class="metric-subtitle">
+            Recorded overspeed events
+        </div>
 
-            <div class="details">
-                <p>Vehicle ID:
-                    <strong id="vehicleId">ESP32-01</strong>
-                </p>
+        <div class="alert-box" id="overspeedAlert">
+            ⚠ OVERSPEED DETECTED
+        </div>
+    </div>
 
-                <p>Latitude:
-                    <strong id="latitude">--</strong>
-                </p>
 
-                <p>Longitude:
-                    <strong id="longitude">--</strong>
-                </p>
+    <!-- FINE -->
 
-                <p>Speed difference:
-                    <strong id="speedDifference">--</strong>
-                </p>
+    <div class="card">
+        <div class="card-label">TOTAL FINE AMOUNT</div>
 
-                <p>Road status:
-                    <strong id="roadStatus">Waiting for data</strong>
-                </p>
+        <div class="metric-value red-text" id="fineAmount">
+            ₹0
+        </div>
+
+        <div class="metric-subtitle">
+            Accumulated violation fines
+        </div>
+    </div>
+
+
+    <!-- VEHICLE DETAILS -->
+
+    <div class="card">
+        <div class="card-label">VEHICLE INFORMATION</div>
+
+        <div class="info-grid">
+
+            <div class="info-item">
+                <small>VEHICLE</small>
+                <strong id="vehicleId">Skoda Slavia</strong>
             </div>
 
-            <div class="alert" id="overspeedAlert">
-                ⚠ OVERSPEEDING DETECTED
+            <div class="info-item">
+                <small>GPS STATUS</small>
+                <strong id="gpsStatus">WAITING</strong>
             </div>
+
+            <div class="info-item">
+                <small>LATITUDE</small>
+                <strong id="latitude">--</strong>
+            </div>
+
+            <div class="info-item">
+                <small>LONGITUDE</small>
+                <strong id="longitude">--</strong>
+            </div>
+
+            <div class="info-item">
+                <small>LAST UPDATE</small>
+                <strong id="lastUpdate">--</strong>
+            </div>
+
+            <div class="info-item">
+                <small>ROAD STATUS</small>
+                <strong id="roadStatus">--</strong>
+            </div>
+
         </div>
+    </div>
 
-    </section>
+</div>
 
-    <section class="panel table-panel">
-        <h2>Recent Traffic Violations</h2>
+
+<!-- DRIVING ANALYTICS -->
+
+<div class="section-title">
+    DRIVING <span>ANALYTICS</span>
+</div>
+
+<div class="analytics-grid">
+
+    <div class="card analytics-card">
+        <div class="card-label">AVERAGE SPEED</div>
+        <div class="analytics-value" id="averageSpeed">
+            -- <span class="analytics-unit">km/h</span>
+        </div>
+    </div>
+
+    <div class="card analytics-card">
+        <div class="card-label">MAXIMUM SPEED</div>
+        <div class="analytics-value red-text" id="maximumSpeed">
+            -- <span class="analytics-unit">km/h</span>
+        </div>
+    </div>
+
+    <div class="card analytics-card">
+        <div class="card-label">TOTAL DISTANCE</div>
+        <div class="analytics-value" id="totalDistance">
+            -- <span class="analytics-unit">km</span>
+        </div>
+    </div>
+
+    <div class="card analytics-card">
+        <div class="card-label">OVERSPEED DURATION</div>
+        <div class="analytics-value" id="overspeedDuration">
+            -- <span class="analytics-unit">min</span>
+        </div>
+    </div>
+
+    <div class="card analytics-card">
+        <div class="card-label">TOTAL VIOLATIONS</div>
+        <div class="analytics-value red-text" id="analyticsViolations">
+            0
+        </div>
+    </div>
+
+    <div class="card analytics-card">
+        <div class="card-label">TOTAL FINE</div>
+        <div class="analytics-value red-text" id="analyticsFine">
+            ₹0
+        </div>
+    </div>
+
+</div>
+
+
+<!-- VEHICLE LOCATION -->
+
+<div class="section-title">
+    VEHICLE <span>LOCATION</span>
+</div>
+
+<div class="card map-card">
+
+    <div class="card-label">LIVE GPS TRACKING</div>
+
+    <div id="map"></div>
+
+</div>
+
+
+<!-- ANALYTICS CHARTS -->
+
+<div class="section-title">
+    PERFORMANCE <span>STATISTICS</span>
+</div>
+
+<div class="chart-grid">
+
+    <div class="card">
+        <div class="card-label">DAILY DISTANCE TRAVELLED</div>
+        <div class="chart-container">
+            <canvas id="dailyChart"></canvas>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-label">WEEKLY PERFORMANCE</div>
+        <div class="chart-container">
+            <canvas id="weeklyChart"></canvas>
+        </div>
+    </div>
+
+</div>
+
+
+<!-- VIOLATION HISTORY -->
+
+<div class="section-title">
+    RECENT <span>TRAFFIC VIOLATIONS</span>
+</div>
+
+<div class="card">
+
+    <div class="card-label">RECENT VIOLATION RECORDS</div>
+
+    <div class="table-wrapper">
 
         <table>
+
             <thead>
                 <tr>
-                    <th>Time</th>
-                    <th>Vehicle Speed</th>
-                    <th>Speed Limit</th>
-                    <th>Fine</th>
-                    <th>Location</th>
+                    <th>DATE & TIME</th>
+                    <th>VEHICLE SPEED</th>
+                    <th>SPEED LIMIT</th>
+                    <th>FINE AMOUNT</th>
+                    <th>STATUS</th>
                 </tr>
             </thead>
 
             <tbody id="violationTable">
                 <tr>
-                    <td colspan="5" class="empty">
-                        No violation records loaded
+                    <td colspan="5" class="empty-row">
+                        Waiting for violation records...
                     </td>
                 </tr>
             </tbody>
-        </table>
-    </section>
 
-</main>
+        </table>
+
+    </div>
+
+</div>
+
 
 <footer>
-    Smart GPS-Based Vehicle Speed Monitoring System
+    SMART GPS-BASED VEHICLE SPEED MONITORING
+    AND AUTOMATED VIOLATION LOGGING SYSTEM
+    <br><br>
+    ESP32 • NEO-6M GPS • POSTGIS • FLASK • NEON
 </footer>
 
+</div>
+
+
+<!-- JAVASCRIPT LIBRARIES -->
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 
 <script>
-    const map = L.map("map").setView([13.08, 80.27], 12);
 
-    L.tileLayer(
-        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-        {
-            maxZoom: 19,
-            attribution: "&copy; OpenStreetMap contributors"
-        }
-    ).addTo(map);
+/* =====================================
+   CONFIGURATION
+===================================== */
 
-    let vehicleMarker = null;
-    let firstLocation = true;
+const VEHICLE_ID = "Skoda Slavia";
 
-    function formatTime(value) {
-        if (!value) return "--";
-        return new Date(value).toLocaleString();
+const DASHBOARD_API = "/api/dashboard";
+
+const ANALYTICS_API =
+    "/api/analytics?vehicle_id=" +
+    encodeURIComponent(VEHICLE_ID);
+
+
+/* =====================================
+   HELPER FUNCTIONS
+===================================== */
+
+function numberValue(value) {
+    const result = Number(value);
+    return Number.isFinite(result) ? result : 0;
+}
+
+function formatMoney(value) {
+    return "₹" + numberValue(value).toFixed(2);
+}
+
+function formatDate(value) {
+    if (!value) return "--";
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return String(value);
     }
 
-    function displayViolations(records) {
-        const table = document.getElementById("violationTable");
+    return date.toLocaleString("en-IN");
+}
 
-        if (!records || records.length === 0) {
-            table.innerHTML =
-                '<tr><td colspan="5" class="empty">No violations recorded yet</td></tr>';
-            return;
+
+/* =====================================
+   ANALOGUE SPEEDOMETER
+===================================== */
+
+function updateSpeedometer(speed, limit) {
+
+    const maxSpeed = 180;
+
+    speed = Math.max(0, numberValue(speed));
+    limit = numberValue(limit);
+
+    // Needle is capped at 180 km/h
+    const displayedSpeed = Math.min(speed, maxSpeed);
+
+    const percentage = displayedSpeed / maxSpeed;
+
+    // Move needle from -90 to +90 degrees
+    const angle = -90 + percentage * 180;
+
+    document.getElementById("gaugeNeedle")
+        .style.transform = `rotate(${angle}deg)`;
+
+    // Red illuminated arc
+    document.getElementById("gaugeArc")
+        .style.strokeDasharray =
+        `${percentage * 100} 100`;
+
+    // Exact digital speed in centre
+    const digital = document.getElementById("digitalSpeed");
+
+    digital.textContent = speed.toFixed(1);
+
+    const isOverspeed = limit > 0 && speed > limit;
+
+    digital.classList.toggle("overspeed", isOverspeed);
+
+    document.getElementById("gaugeStatus").textContent =
+        isOverspeed ? "OVERSPEED" : "NORMAL";
+
+    document.getElementById("gaugeStatus").style.color =
+        isOverspeed ? "#ff343d" : "#35df91";
+
+    document.getElementById("gaugeLimit").textContent =
+        limit > 0 ? limit + " KM/H" : "-- KM/H";
+}
+
+
+/* =====================================
+   MAP INITIALIZATION
+===================================== */
+
+const map = L.map("map").setView([13.0827, 80.2707], 12);
+
+L.tileLayer(
+    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    {
+        attribution: "&copy; OpenStreetMap contributors",
+        maxZoom: 19
+    }
+).addTo(map);
+
+let vehicleMarker = null;
+
+const vehicleIcon = L.divIcon({
+    className: "",
+    html: `
+        <div style="
+            width:24px;
+            height:24px;
+            background:#ff343d;
+            border:4px solid white;
+            border-radius:50%;
+            box-shadow:0 0 15px #ff343d;
+        "></div>
+    `,
+    iconSize: [24, 24],
+    iconAnchor: [12, 12]
+});
+
+function updateMap(lat, lon) {
+
+    lat = numberValue(lat);
+    lon = numberValue(lon);
+
+    if (!lat || !lon) return;
+
+    const position = [lat, lon];
+
+    if (!vehicleMarker) {
+
+        vehicleMarker = L.marker(position, {
+            icon: vehicleIcon
+        }).addTo(map);
+
+        vehicleMarker.bindPopup(
+            "Vehicle: " + VEHICLE_ID
+        );
+
+        map.setView(position, 16);
+
+    } else {
+
+        vehicleMarker.setLatLng(position);
+
+    }
+}
+
+
+/* =====================================
+   CONNECTION STATUS
+===================================== */
+
+function setConnectionStatus(online) {
+
+    const element =
+        document.getElementById("connectionStatus");
+
+    const text =
+        document.getElementById("connectionText");
+
+    element.classList.toggle("offline", !online);
+
+    text.textContent =
+        online ? "SYSTEM ONLINE" : "CONNECTION LOST";
+}
+
+
+/* =====================================
+   DASHBOARD DATA
+===================================== */
+
+async function updateDashboard() {
+
+    const status =
+        document.getElementById("connectionStatus");
+
+    try {
+
+        const response = await fetch(DASHBOARD_API, {
+            cache: "no-store"
+        });
+
+        if (!response.ok) {
+            throw new Error("Dashboard API error: " + response.status);
         }
 
-        table.innerHTML = records.map(item => `
+        const data = await response.json();
+
+        const vehicle = data.vehicle || {};
+
+        setConnectionStatus(true);
+
+        // Vehicle name
+        document.getElementById("vehicleId").textContent =
+            vehicle.vehicle_id || VEHICLE_ID;
+
+        // Live vehicle speed
+        const speed = numberValue(vehicle.vehicle_speed);
+
+        // Road speed limit
+        const limit = numberValue(vehicle.speed_limit);
+
+        document.getElementById("speedLimit").innerHTML =
+            `${limit.toFixed(0)} <span>km/h</span>`;
+
+        // Update analogue and digital speedometer
+        updateSpeedometer(speed, limit);
+
+        // GPS coordinates
+        const lat = numberValue(vehicle.latitude);
+        const lon = numberValue(vehicle.longitude);
+
+        document.getElementById("latitude").textContent =
+            lat.toFixed(6);
+
+        document.getElementById("longitude").textContent =
+            lon.toFixed(6);
+
+        // GPS status
+        document.getElementById("gpsStatus").textContent =
+            vehicle.online === false ? "OFFLINE" : "ACTIVE";
+
+        // Last update
+        document.getElementById("lastUpdate").textContent =
+            formatDate(vehicle.updated_at);
+
+        // Road status
+        const isOverspeed = limit > 0 && speed > limit;
+
+        document.getElementById("roadStatus").textContent =
+            isOverspeed ? "OVERSPEED" : "NORMAL";
+
+        document.getElementById("roadStatus").style.color =
+            isOverspeed ? "#ff343d" : "#35df91";
+
+        // Overspeed alert
+        document.getElementById("overspeedAlert").style.display =
+            isOverspeed ? "block" : "none";
+
+        // Violations
+        document.getElementById("violationCount").textContent =
+            numberValue(data.total_violations);
+
+        // Total fine from actual violation records
+        const violations = Array.isArray(data.recent_violations)
+            ? data.recent_violations
+            : [];
+
+        const recentFine = violations.reduce(
+            (sum, item) => sum + numberValue(item.fine_amount),
+            0
+        );
+
+        document.getElementById("fineAmount").textContent =
+            formatMoney(recentFine);
+
+        // Update map
+        updateMap(lat, lon);
+
+        // Update violation table
+        updateViolationTable(violations);
+
+    } catch (error) {
+
+        console.error("Dashboard error:", error);
+
+        setConnectionStatus(false);
+
+    }
+}
+
+
+/* =====================================
+   VIOLATION TABLE
+===================================== */
+
+function updateViolationTable(violations) {
+
+    const table =
+        document.getElementById("violationTable");
+
+    if (!violations || violations.length === 0) {
+
+        table.innerHTML = `
             <tr>
-                <td>${formatTime(item.violation_time)}</td>
-                <td>${Number(item.vehicle_speed).toFixed(1)} km/h</td>
-                <td>${item.speed_limit} km/h</td>
-                <td>₹${item.fine_amount}</td>
-                <td>${Number(item.latitude).toFixed(5)},
-                    ${Number(item.longitude).toFixed(5)}</td>
+                <td colspan="5" class="empty-row">
+                    No violations recorded yet
+                </td>
             </tr>
-        `).join("");
+        `;
+
+        return;
     }
 
-    async function updateDashboard() {
-        try {
-            const response = await fetch("/api/dashboard", {
-                cache: "no-store"
-            });
+    table.replaceChildren();
 
-            if (!response.ok) {
-                throw new Error("Dashboard API returned an error");
+    violations.forEach(item => {
+
+        const row = document.createElement("tr");
+
+        const values = [
+            formatDate(item.violation_time),
+            numberValue(item.vehicle_speed).toFixed(1) + " km/h",
+            numberValue(item.speed_limit) + " km/h",
+            formatMoney(item.fine_amount)
+        ];
+
+        values.forEach(value => {
+
+            const cell = document.createElement("td");
+
+            cell.textContent = value;
+
+            row.appendChild(cell);
+
+        });
+
+        const statusCell = document.createElement("td");
+
+        const badge = document.createElement("span");
+
+        badge.className = "status-badge";
+        badge.textContent = "OVERSPEED";
+
+        statusCell.appendChild(badge);
+        row.appendChild(statusCell);
+
+        table.appendChild(row);
+
+    });
+
+}
+
+
+/* =====================================
+   ANALYTICS CHARTS
+===================================== */
+
+let dailyChart = null;
+let weeklyChart = null;
+
+
+function createChartOptions() {
+
+    return {
+        responsive: true,
+        maintainAspectRatio: false,
+
+        plugins: {
+            legend: {
+                labels: {
+                    color: "#d5d7df",
+                    font: {
+                        family: "Inter"
+                    }
+                }
             }
+        },
 
-            const data = await response.json();
+        scales: {
+            x: {
+                ticks: {
+                    color: "#9298a7"
+                },
+                grid: {
+                    color: "#292e3a"
+                }
+            },
 
-            document.getElementById("violationCount").textContent =
-                data.total_violations ?? 0;
-
-            document.getElementById("fineAmount").textContent =
-                "₹" + ((data.total_violations ?? 0) * 200);
-
-            displayViolations(data.recent_violations);
-
-            const vehicle = data.vehicle;
-            const status =
-                document.getElementById("connectionStatus");
-
-            if (!vehicle) {
-                status.textContent = "● NO GPS DATA";
-                status.className = "status offline";
-                return;
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    color: "#9298a7"
+                },
+                grid: {
+                    color: "#292e3a"
+                }
             }
-
-            const isOnline = vehicle.online === true;
-
-            status.textContent = isOnline ? "● ONLINE" : "● OFFLINE";
-
-            status.className = isOnline
-                ? "status online"
-                : "status offline";
-
-            document.getElementById("vehicleId").textContent =
-                vehicle.vehicle_id;
-
-            document.getElementById("vehicleSpeed").textContent =
-                Number(vehicle.vehicle_speed).toFixed(1);
-
-            document.getElementById("speedLimit").textContent =
-                vehicle.speed_limit;
-
-            document.getElementById("latitude").textContent =
-                Number(vehicle.latitude).toFixed(6);
-
-            document.getElementById("longitude").textContent =
-                Number(vehicle.longitude).toFixed(6);
-
-            document.getElementById("lastUpdated").textContent =
-                "Last update: " + formatTime(vehicle.updated_at);
-
-            const difference =
-                Number(vehicle.vehicle_speed) -
-                Number(vehicle.speed_limit);
-
-            const isOverspeeding = difference > 0;
-
-            document.getElementById("speedDifference").textContent =
-                (difference > 0 ? "+" : "") +
-                difference.toFixed(1) + " km/h";
-
-            document.getElementById("roadStatus").textContent =
-                isOverspeeding
-                    ? "OVERSPEEDING"
-                    : "Within speed limit";
-
-            document.getElementById("roadStatus").className =
-                isOverspeeding ? "warning" : "safe";
-
-            document.getElementById("overspeedAlert").style.display =
-                isOverspeeding ? "block" : "none";
-
-            const position = [
-                Number(vehicle.latitude),
-                Number(vehicle.longitude)
-            ];
-
-            if (!vehicleMarker) {
-                vehicleMarker = L.marker(position).addTo(map);
-                vehicleMarker.bindPopup(
-                    "ESP32-01 - Live vehicle location"
-                );
-            } else {
-                vehicleMarker.setLatLng(position);
-            }
-
-            if (firstLocation) {
-                map.setView(position, 16);
-                firstLocation = false;
-            }
-
-            if (!isOnline) {
-                document.getElementById("lastUpdated").textContent +=
-                    " (telemetry is stale)";
-            }
-
-        } catch (error) {
-            console.error("Dashboard update failed:", error);
-
-            const status =
-                document.getElementById("connectionStatus");
-
-            status.textContent = "● SERVER ERROR";
-            status.className = "status offline";
         }
+    };
+}
+
+
+function updateDailyChart(statistics) {
+
+    const labels = statistics.map(item => item.day);
+
+    const distance = statistics.map(
+        item => numberValue(item.distance_km)
+    );
+
+    if (dailyChart) {
+        dailyChart.data.labels = labels;
+        dailyChart.data.datasets[0].data = distance;
+        dailyChart.update();
+        return;
     }
 
-    updateDashboard();
-    setInterval(updateDashboard, 2000);
+    dailyChart = new Chart(
+        document.getElementById("dailyChart"),
+        {
+            type: "bar",
+
+            data: {
+                labels: labels,
+
+                datasets: [{
+                    label: "Distance (km)",
+                    data: distance,
+                    backgroundColor: "#ff343d",
+                    borderRadius: 6
+                }]
+            },
+
+            options: createChartOptions()
+        }
+    );
+}
+
+
+function updateWeeklyChart(statistics) {
+
+    const labels = statistics.map(
+        item => item.week_start
+    );
+
+    const distance = statistics.map(
+        item => numberValue(item.distance_km)
+    );
+
+    const violations = statistics.map(
+        item => numberValue(item.violations)
+    );
+
+    if (weeklyChart) {
+
+        weeklyChart.data.labels = labels;
+
+        weeklyChart.data.datasets[0].data = distance;
+        weeklyChart.data.datasets[1].data = violations;
+
+        weeklyChart.update();
+
+        return;
+    }
+
+    weeklyChart = new Chart(
+        document.getElementById("weeklyChart"),
+        {
+            type: "line",
+
+            data: {
+                labels: labels,
+
+                datasets: [
+                    {
+                        label: "Distance (km)",
+                        data: distance,
+                        borderColor: "#ff343d",
+                        backgroundColor: "#ff343d22",
+                        tension: 0.35
+                    },
+                    {
+                        label: "Violations",
+                        data: violations,
+                        borderColor: "#35df91",
+                        backgroundColor: "#35df9122",
+                        tension: 0.35
+                    }
+                ]
+            },
+
+            options: createChartOptions()
+        }
+    );
+}
+
+
+/* =====================================
+   FETCH DRIVING ANALYTICS
+===================================== */
+
+async function updateAnalytics() {
+
+    try {
+
+        const response = await fetch(ANALYTICS_API, {
+            cache: "no-store"
+        });
+
+        if (!response.ok) {
+            throw new Error("Analytics API error: " + response.status);
+        }
+
+        const data = await response.json();
+
+        const summary = data.summary || {};
+
+        // Average speed
+        document.getElementById("averageSpeed").innerHTML =
+            `${numberValue(summary.average_speed).toFixed(2)}
+            <span class="analytics-unit">km/h</span>`;
+
+        // Maximum speed
+        document.getElementById("maximumSpeed").innerHTML =
+            `${numberValue(summary.maximum_speed).toFixed(2)}
+            <span class="analytics-unit">km/h</span>`;
+
+        // Distance
+        document.getElementById("totalDistance").innerHTML =
+            `${numberValue(summary.total_distance_km).toFixed(3)}
+            <span class="analytics-unit">km</span>`;
+
+        // Overspeed duration
+        document.getElementById("overspeedDuration").innerHTML =
+            `${numberValue(summary.overspeed_duration_minutes).toFixed(2)}
+            <span class="analytics-unit">min</span>`;
+
+        // Violations
+        document.getElementById("analyticsViolations").textContent =
+            numberValue(summary.total_violations);
+
+        // Total fine
+        document.getElementById("analyticsFine").textContent =
+            formatMoney(summary.total_fine);
+
+        // Charts
+        updateDailyChart(
+            Array.isArray(data.daily_statistics)
+                ? data.daily_statistics
+                : []
+        );
+
+        updateWeeklyChart(
+            Array.isArray(data.weekly_statistics)
+                ? data.weekly_statistics
+                : []
+        );
+
+    } catch (error) {
+
+        console.error("Analytics error:", error);
+
+    }
+
+}
+
+
+/* =====================================
+   AUTOMATIC REFRESH
+===================================== */
+
+// Live vehicle information every 3 seconds
+updateDashboard();
+setInterval(updateDashboard, 3000);
+
+// Driving analytics every 15 seconds
+updateAnalytics();
+setInterval(updateAnalytics, 15000);
+
 </script>
 
 </body>
 </html>
-
