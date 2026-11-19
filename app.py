@@ -1,12 +1,15 @@
+
 from flask import Flask, request, jsonify, render_template
 import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
 app = Flask(__name__)
+
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
 
+# DATABASE CONNECTION
 def get_db_connection():
     if not DATABASE_URL:
         raise RuntimeError("DATABASE_URL environment variable is missing")
@@ -18,16 +21,19 @@ def get_db_connection():
     )
 
 
+# HOME PAGE - DASHBOARD
 @app.route("/")
 def home():
     return render_template("index.html")
 
 
+# HEALTH CHECK
 @app.route("/health")
 def health():
     return "Speed Limit API Running - Neon PostgreSQL Connected"
 
 
+# GET ROAD SPEED LIMIT
 @app.route("/speedlimit", methods=["GET"])
 def speedlimit():
     try:
@@ -50,20 +56,26 @@ def speedlimit():
                         ROUND(
                             ST_Distance(
                                 geom,
-                                ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography
+                                ST_SetSRID(
+                                    ST_MakePoint(%s, %s), 4326
+                                )::geography
                             )::numeric,
                             2
                         ) AS distance_metres
                     FROM public.road_points
                     ORDER BY
-                        geom <-> ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography
+                        geom <-> ST_SetSRID(
+                            ST_MakePoint(%s, %s), 4326
+                        )::geography
                     LIMIT 1;
                 """, (lon, lat, lon, lat))
 
                 result = cur.fetchone()
 
             if not result:
-                return jsonify({"error": "No nearby road found"}), 404
+                return jsonify({
+                    "error": "No nearby road found"
+                }), 404
 
             return jsonify(dict(result)), 200
 
@@ -71,13 +83,18 @@ def speedlimit():
             conn.close()
 
     except (TypeError, ValueError):
-        return jsonify({"error": "Valid lat and lon are required"}), 400
+        return jsonify({
+            "error": "Valid lat and lon are required"
+        }), 400
 
     except Exception:
         app.logger.exception("Speed limit lookup failed")
-        return jsonify({"error": "Speed limit lookup failed"}), 500
+        return jsonify({
+            "error": "Speed limit lookup failed"
+        }), 500
 
 
+# STORE TRAFFIC VIOLATION
 @app.route("/violation", methods=["POST"])
 def violation():
     data = request.get_json(silent=True) or {}
@@ -113,10 +130,18 @@ def violation():
                     )
                     VALUES (
                         %s, %s, %s, %s, %s, NOW(),
-                        ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography
+                        ST_SetSRID(
+                            ST_MakePoint(%s, %s), 4326
+                        )::geography
                     );
                 """, (
-                    lat, lon, speed, limit, fine_amount, lon, lat
+                    lat,
+                    lon,
+                    speed,
+                    limit,
+                    fine_amount,
+                    lon,
+                    lat
                 ))
 
             conn.commit()
@@ -131,13 +156,18 @@ def violation():
         }), 201
 
     except (KeyError, TypeError, ValueError):
-        return jsonify({"error": "Invalid violation data"}), 400
+        return jsonify({
+            "error": "Invalid violation data"
+        }), 400
 
     except Exception:
         app.logger.exception("Violation storage failed")
-        return jsonify({"error": "Violation storage failed"}), 500
+        return jsonify({
+            "error": "Violation storage failed"
+        }), 500
 
 
+# RECEIVE LIVE ESP32 GPS TELEMETRY
 @app.route("/telemetry", methods=["POST"])
 def telemetry():
     data = request.get_json(silent=True) or {}
@@ -147,13 +177,20 @@ def telemetry():
         lon = float(data["lon"])
         speed = float(data["speed"])
         limit = int(data["speed_limit"])
-        vehicle_id = str(data.get("vehicle_id", "ESP32-01"))
+
+        vehicle_id = str(
+            data.get("vehicle_id", "ESP32-01")
+        )
 
         if not (-90 <= lat <= 90 and -180 <= lon <= 180):
-            return jsonify({"error": "Invalid coordinates"}), 400
+            return jsonify({
+                "error": "Invalid coordinates"
+            }), 400
 
         if speed < 0 or limit <= 0:
-            return jsonify({"error": "Invalid speed values"}), 400
+            return jsonify({
+                "error": "Invalid speed values"
+            }), 400
 
         conn = get_db_connection()
 
@@ -170,6 +207,7 @@ def telemetry():
                         updated_at
                     )
                     VALUES (%s, %s, %s, %s, %s, NOW())
+
                     ON CONFLICT (vehicle_id)
                     DO UPDATE SET
                         latitude = EXCLUDED.latitude,
@@ -177,23 +215,36 @@ def telemetry():
                         vehicle_speed = EXCLUDED.vehicle_speed,
                         speed_limit = EXCLUDED.speed_limit,
                         updated_at = NOW();
-                """, (vehicle_id, lat, lon, speed, limit))
+                """, (
+                    vehicle_id,
+                    lat,
+                    lon,
+                    speed,
+                    limit
+                ))
 
             conn.commit()
 
         finally:
             conn.close()
 
-        return jsonify({"status": "success"}), 200
+        return jsonify({
+            "status": "success"
+        }), 200
 
     except (KeyError, TypeError, ValueError):
-        return jsonify({"error": "Invalid telemetry data"}), 400
+        return jsonify({
+            "error": "Invalid telemetry data"
+        }), 400
 
     except Exception:
         app.logger.exception("Telemetry update failed")
-        return jsonify({"error": "Telemetry update failed"}), 500
+        return jsonify({
+            "error": "Telemetry update failed"
+        }), 500
 
 
+# SEND DATA TO LIVE DASHBOARD
 @app.route("/api/dashboard", methods=["GET"])
 def dashboard_data():
     conn = None
@@ -202,6 +253,8 @@ def dashboard_data():
         conn = get_db_connection()
 
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
+
+            # Latest vehicle information
             cur.execute("""
                 SELECT
                     vehicle_id,
@@ -210,19 +263,26 @@ def dashboard_data():
                     vehicle_speed,
                     speed_limit,
                     updated_at,
-                    (updated_at >= NOW() - INTERVAL '15 seconds') AS online
+                    (
+                        updated_at >=
+                        NOW() - INTERVAL '15 seconds'
+                    ) AS online
                 FROM public.vehicle_status
                 ORDER BY updated_at DESC
                 LIMIT 1;
             """)
+
             vehicle = cur.fetchone()
 
+            # Total violations
             cur.execute("""
                 SELECT COUNT(*) AS total
                 FROM public.violations;
             """)
+
             total_violations = cur.fetchone()["total"]
 
+            # Recent violations
             cur.execute("""
                 SELECT
                     latitude,
@@ -235,23 +295,29 @@ def dashboard_data():
                 ORDER BY violation_time DESC
                 LIMIT 10;
             """)
+
             recent_violations = cur.fetchall()
 
         if vehicle:
             vehicle = dict(vehicle)
+
             vehicle["updated_at"] = (
                 vehicle["updated_at"].isoformat()
-                if vehicle["updated_at"] else None
+                if vehicle["updated_at"]
+                else None
             )
 
         violations = []
 
         for item in recent_violations:
             item = dict(item)
+
             item["violation_time"] = (
                 item["violation_time"].isoformat()
-                if item["violation_time"] else None
+                if item["violation_time"]
+                else None
             )
+
             violations.append(item)
 
         return jsonify({
@@ -261,14 +327,20 @@ def dashboard_data():
         }), 200
 
     except Exception:
-        app.logger.exception("Dashboard data request failed")
-        return jsonify({"error": "Could not load dashboard data"}), 500
+        app.logger.exception(
+            "Dashboard data request failed"
+        )
+
+        return jsonify({
+            "error": "Could not load dashboard data"
+        }), 500
 
     finally:
         if conn:
             conn.close()
 
 
+# START FLASK SERVER
 if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
