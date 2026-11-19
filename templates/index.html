@@ -1,1 +1,492 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Vehicle Speed Monitoring System</title>
+
+    <link rel="stylesheet"
+          href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f1f5f9;
+            color: #172033;
+        }
+
+        header {
+            background: #14213d;
+            color: white;
+            padding: 22px 5%;
+        }
+
+        header h1 {
+            margin: 0 0 7px;
+            font-size: 23px;
+        }
+
+        header p {
+            margin: 0;
+            color: #cbd5e1;
+            font-size: 14px;
+        }
+
+        main {
+            max-width: 1250px;
+            margin: 25px auto;
+            padding: 0 18px;
+        }
+
+        .status-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+        }
+
+        .status {
+            padding: 9px 14px;
+            border-radius: 20px;
+            background: #e2e8f0;
+            font-weight: bold;
+            font-size: 13px;
+        }
+
+        .online {
+            color: #166534;
+            background: #dcfce7;
+        }
+
+        .offline {
+            color: #991b1b;
+            background: #fee2e2;
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .card, .panel {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .card h3 {
+            margin: 0 0 12px;
+            color: #64748b;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .value {
+            font-size: 30px;
+            font-weight: bold;
+        }
+
+        .unit {
+            font-size: 14px;
+            color: #64748b;
+        }
+
+        .warning {
+            color: #dc2626;
+        }
+
+        .safe {
+            color: #15803d;
+        }
+
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1.4fr 1fr;
+            gap: 18px;
+        }
+
+        .panel h2 {
+            margin: 0 0 16px;
+            font-size: 18px;
+        }
+
+        #map {
+            width: 100%;
+            height: 390px;
+            border-radius: 9px;
+        }
+
+        .details p {
+            margin: 12px 0;
+            color: #475569;
+            font-size: 14px;
+        }
+
+        .details strong {
+            color: #172033;
+        }
+
+        .alert {
+            display: none;
+            margin-top: 15px;
+            padding: 13px;
+            border-radius: 8px;
+            color: #991b1b;
+            background: #fee2e2;
+            font-weight: bold;
+        }
+
+        .table-panel {
+            margin-top: 20px;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            min-width: 600px;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 12px 10px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        th {
+            color: #64748b;
+            background: #f8fafc;
+        }
+
+        .empty {
+            color: #64748b;
+            text-align: center;
+            padding: 20px;
+        }
+
+        footer {
+            text-align: center;
+            color: #64748b;
+            padding: 25px;
+            font-size: 12px;
+        }
+
+        @media (max-width: 850px) {
+            .cards {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .cards {
+                grid-template-columns: 1fr 1fr;
+                gap: 9px;
+            }
+
+            .card {
+                padding: 14px;
+            }
+
+            .value {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <h1>Smart GPS-Based Vehicle Monitoring System</h1>
+    <p>Real-time speed monitoring and automated traffic violation logging</p>
+</header>
+
+<main>
+
+    <div class="status-row">
+        <div>
+            <strong>Vehicle: ESP32-01</strong>
+            <div class="unit" id="lastUpdated">
+                Waiting for GPS telemetry...
+            </div>
+        </div>
+
+        <div class="status offline" id="connectionStatus">
+            ● OFFLINE
+        </div>
+    </div>
+
+    <section class="cards">
+
+        <div class="card">
+            <h3>Vehicle Speed</h3>
+            <div class="value" id="vehicleSpeed">--</div>
+            <div class="unit">km/h</div>
+        </div>
+
+        <div class="card">
+            <h3>Road Speed Limit</h3>
+            <div class="value" id="speedLimit">--</div>
+            <div class="unit">km/h</div>
+        </div>
+
+        <div class="card">
+            <h3>Total Violations</h3>
+            <div class="value" id="violationCount">0</div>
+            <div class="unit">Recorded violations</div>
+        </div>
+
+        <div class="card">
+            <h3>Fine Amount</h3>
+            <div class="value" id="fineAmount">₹0</div>
+            <div class="unit">Demonstration fine per violation: ₹200</div>
+        </div>
+
+    </section>
+
+    <section class="content-grid">
+
+        <div class="panel">
+            <h2>Live GPS Location</h2>
+            <div id="map"></div>
+        </div>
+
+        <div class="panel">
+            <h2>Vehicle Information</h2>
+
+            <div class="details">
+                <p>Vehicle ID:
+                    <strong id="vehicleId">ESP32-01</strong>
+                </p>
+
+                <p>Latitude:
+                    <strong id="latitude">--</strong>
+                </p>
+
+                <p>Longitude:
+                    <strong id="longitude">--</strong>
+                </p>
+
+                <p>Speed difference:
+                    <strong id="speedDifference">--</strong>
+                </p>
+
+                <p>Road status:
+                    <strong id="roadStatus">Waiting for data</strong>
+                </p>
+            </div>
+
+            <div class="alert" id="overspeedAlert">
+                ⚠ OVERSPEEDING DETECTED
+            </div>
+        </div>
+
+    </section>
+
+    <section class="panel table-panel">
+        <h2>Recent Traffic Violations</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Vehicle Speed</th>
+                    <th>Speed Limit</th>
+                    <th>Fine</th>
+                    <th>Location</th>
+                </tr>
+            </thead>
+
+            <tbody id="violationTable">
+                <tr>
+                    <td colspan="5" class="empty">
+                        No violation records loaded
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+</main>
+
+<footer>
+    Smart GPS-Based Vehicle Speed Monitoring System
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+    const map = L.map("map").setView([13.08, 80.27], 12);
+
+    L.tileLayer(
+        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        {
+            maxZoom: 19,
+            attribution: "&copy; OpenStreetMap contributors"
+        }
+    ).addTo(map);
+
+    let vehicleMarker = null;
+    let firstLocation = true;
+
+    function formatTime(value) {
+        if (!value) return "--";
+        return new Date(value).toLocaleString();
+    }
+
+    function displayViolations(records) {
+        const table = document.getElementById("violationTable");
+
+        if (!records || records.length === 0) {
+            table.innerHTML =
+                '<tr><td colspan="5" class="empty">No violations recorded yet</td></tr>';
+            return;
+        }
+
+        table.innerHTML = records.map(item => `
+            <tr>
+                <td>${formatTime(item.violation_time)}</td>
+                <td>${Number(item.vehicle_speed).toFixed(1)} km/h</td>
+                <td>${item.speed_limit} km/h</td>
+                <td>₹${item.fine_amount}</td>
+                <td>${Number(item.latitude).toFixed(5)},
+                    ${Number(item.longitude).toFixed(5)}</td>
+            </tr>
+        `).join("");
+    }
+
+    async function updateDashboard() {
+        try {
+            const response = await fetch("/api/dashboard", {
+                cache: "no-store"
+            });
+
+            if (!response.ok) {
+                throw new Error("Dashboard API returned an error");
+            }
+
+            const data = await response.json();
+
+            document.getElementById("violationCount").textContent =
+                data.total_violations ?? 0;
+
+            document.getElementById("fineAmount").textContent =
+                "₹" + ((data.total_violations ?? 0) * 200);
+
+            displayViolations(data.recent_violations);
+
+            const vehicle = data.vehicle;
+            const status =
+                document.getElementById("connectionStatus");
+
+            if (!vehicle) {
+                status.textContent = "● NO GPS DATA";
+                status.className = "status offline";
+                return;
+            }
+
+            const isOnline = vehicle.online === true;
+
+            status.textContent = isOnline ? "● ONLINE" : "● OFFLINE";
+
+            status.className = isOnline
+                ? "status online"
+                : "status offline";
+
+            document.getElementById("vehicleId").textContent =
+                vehicle.vehicle_id;
+
+            document.getElementById("vehicleSpeed").textContent =
+                Number(vehicle.vehicle_speed).toFixed(1);
+
+            document.getElementById("speedLimit").textContent =
+                vehicle.speed_limit;
+
+            document.getElementById("latitude").textContent =
+                Number(vehicle.latitude).toFixed(6);
+
+            document.getElementById("longitude").textContent =
+                Number(vehicle.longitude).toFixed(6);
+
+            document.getElementById("lastUpdated").textContent =
+                "Last update: " + formatTime(vehicle.updated_at);
+
+            const difference =
+                Number(vehicle.vehicle_speed) -
+                Number(vehicle.speed_limit);
+
+            const isOverspeeding = difference > 0;
+
+            document.getElementById("speedDifference").textContent =
+                (difference > 0 ? "+" : "") +
+                difference.toFixed(1) + " km/h";
+
+            document.getElementById("roadStatus").textContent =
+                isOverspeeding
+                    ? "OVERSPEEDING"
+                    : "Within speed limit";
+
+            document.getElementById("roadStatus").className =
+                isOverspeeding ? "warning" : "safe";
+
+            document.getElementById("overspeedAlert").style.display =
+                isOverspeeding ? "block" : "none";
+
+            const position = [
+                Number(vehicle.latitude),
+                Number(vehicle.longitude)
+            ];
+
+            if (!vehicleMarker) {
+                vehicleMarker = L.marker(position).addTo(map);
+                vehicleMarker.bindPopup(
+                    "ESP32-01 - Live vehicle location"
+                );
+            } else {
+                vehicleMarker.setLatLng(position);
+            }
+
+            if (firstLocation) {
+                map.setView(position, 16);
+                firstLocation = false;
+            }
+
+            if (!isOnline) {
+                document.getElementById("lastUpdated").textContent +=
+                    " (telemetry is stale)";
+            }
+
+        } catch (error) {
+            console.error("Dashboard update failed:", error);
+
+            const status =
+                document.getElementById("connectionStatus");
+
+            status.textContent = "● SERVER ERROR";
+            status.className = "status offline";
+        }
+    }
+
+    updateDashboard();
+    setInterval(updateDashboard, 2000);
+</script>
+
+</body>
+</html>
+
