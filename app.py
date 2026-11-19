@@ -1,56 +1,112 @@
+
 from flask import Flask, request, jsonify
-import requests
+import os
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
 app = Flask(__name__)
 
-SUPABASE_URL = "https://qwrlfojltqfkgyjjhwky.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF3cmxmb2psdHFma2d5ampod2t5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjkwNzEzNCwiZXhwIjoyMDk4NDgzMTM0fQ.J_CibEEtUZFialqKeDmJqu3hrLrDSAjSVNiJRn-Okwc"
+DATABASE_URL = os.environ.get("DATABASE_URL")
+
+
+def get_db_connection():
+    if not DATABASE_URL:
+        raise RuntimeError("DATABASE_URL environment variable is missing")
+
+    return psycopg2.connect(
+        DATABASE_URL,
+        connect_timeout=15,
+        sslmode="require"
+    )
 
 
 @app.route("/")
 def home():
-    return "Speed Limit API Running"
+    return "Speed Limit API Running - Neon PostgreSQL Connected"
 
 
-@app.route("/speedlimit")
+# -----------------------------------
+# NEAREST SPEED LIMIT
+# -----------------------------------
+
+@app.route("/speedlimit", methods=["GET"])
 def speedlimit():
 
-    lat = float(request.args.get("lat"))
-    lon = float(request.args.get("lon"))
+    try:
+        lat = float(request.args.get("lat"))
+        lon = float(request.args.get("lon"))
 
-    headers = {
-        "apikey": SUPABASE_KEY,
-        "Authorization": f"Bearer {SUPABASE_KEY}",
-        "Content-Type": "application/json"
-    }
+        if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+            return jsonify({"error": "Invalid GPS coordinates"}), 400
 
-    response = requests.post(
-        f"{SUPABASE_URL}/rest/v1/rpc/nearest_speed_limit",
-        headers=headers,
-        json={
-            "lat_input": lat,
-            "lon_input": lon
-        }
-    )
+        conn = get_db_connection()
 
-    data = response.json()
+        try:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
 
-    if not data:
-        return jsonify({"error": "No speed limit found"}), 404
+                cur.execute("""
+                    SELECT
+                        highway,
+                        speed_limit,
+                        longitude AS nearest_x,
+                        latitude AS nearest_y,
+                        ROUND(
+                            ST_Distance(
+                                geom,
+                                ST_SetSRID(
+                                    ST_MakePoint(%s, %s),
+                                    4326
+                                )::geography
+                            )::numeric,
+                            2
+                        ) AS distance_metres
 
-    result = data[0]
+                    FROM public.road_points
 
-    return jsonify({
-        "speed_limit": result["speed_limit"],
-        "nearest_x": result["x"],
-        "nearest_y": result["y"]
-    })
+                    ORDER BY geom <-> ST_SetSRID(
+                        ST_MakePoint(%s, %s),
+                        4326
+                    )::geography
 
+                    LIMIT 1;
+                """, (lon, lat, lon, lat))
+
+                result = cur.fetchone()
+
+                if not result:
+                    return jsonify({
+                        "error": "No speed limit found"
+                    }), 404
+
+                return jsonify({
+                    "speed_limit": result["speed_limit"],
+                    "nearest_x": result["nearest_x"],
+                    "nearest_y": result["nearest_y"],
+                    "highway": result["highway"],
+                    "distance_metres": float(
+                        result["distance_metres"]
+                    )
+                })
+
+        finally:
+            conn.close()
+
+    except (TypeError, ValueError):
+        return jsonify({"error": "Invalid or missing GPS coordinates"}), 400
+
+    except Exception:
+        app.logger.exception("Speed limit lookup failed")
+        return jsonify({"error": "Database lookup failed"}), 500
+
+
+# -----------------------------------
+# STORE OVERSPEED VIOLATION
+# -----------------------------------
 
 @app.route("/violation", methods=["POST"])
 def violation():
 
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
 
     required = ["lat", "lon", "speed", "speed_limit"]
 
@@ -61,46 +117,76 @@ def violation():
                 "message": f"Missing field: {field}"
             }), 400
 
-    lat = data["lat"]
-    lon = data["lon"]
-    speed = data["speed"]
-    speed_limit = data["speed_limit"]
+    try:
+        lat = float(data["lat"])
+        lon = float(data["lon"])
+        speed = float(data["speed"])
+        speed_limit = int(data["speed_limit"])
 
-    headers = {
-        "apikey": SUPABASE_KEY,
-        "Authorization": f"Bearer {SUPABASE_KEY}",
-        "Content-Type": "application/json",
-        "Prefer": "return=representation"
-    }
+        if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+            return jsonify({"error": "Invalid GPS coordinates"}), 400
 
-    payload = {
-        "latitude": lat,
-        "longitude": lon,
-        "speed": speed,
-        "speed_limit": speed_limit,
-        "fine_amount": 200,
-        "violation_duration": 15
-    }
+        if speed < 0 or speed_limit <= 0:
+            return jsonify({"error": "Invalid speed values"}), 400
 
-    response = requests.post(
-        f"{SUPABASE_URL}/rest/v1/violations",
-        headers=headers,
-        json=payload
-    )
+        conn = get_db_connection()
 
-    if response.status_code not in [200, 201]:
+        try:
+            with conn.cursor() as cur:
+
+                cur.execute("""
+                    INSERT INTO public.violations (
+                        latitude,
+                        longitude,
+                        vehicle_speed,
+                        speed_limit,
+                        fine_amount,
+                        geom
+                    )
+                    VALUES (
+                        %s,
+                        %s,
+                        %s,
+                        %s,
+                        200,
+                        ST_SetSRID(
+                            ST_MakePoint(%s, %s),
+                            4326
+                        )::geography
+                    );
+                """, (
+                    lat,
+                    lon,
+                    speed,
+                    speed_limit,
+                    lon,
+                    lat
+                ))
+
+            conn.commit()
+
+        finally:
+            conn.close()
+
+        return jsonify({
+            "status": "success",
+            "fine_amount": 200,
+            "message": "Violation stored"
+        }), 201
+
+    except (TypeError, ValueError):
         return jsonify({
             "status": "error",
-            "supabase_status": response.status_code,
-            "details": response.text
-        }), 500
+            "message": "Invalid input values"
+        }), 400
 
-    return jsonify({
-        "status": "success",
-        "fine_amount": 200,
-        "message": "Violation stored"
-    })
+    except Exception:
+        app.logger.exception("Violation insertion failed")
+        return jsonify({
+            "status": "error",
+            "message": "Could not store violation"
+        }), 500
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
